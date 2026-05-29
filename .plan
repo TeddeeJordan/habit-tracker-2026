@@ -1,0 +1,152 @@
+# Habit Tracker 2026 — Implementation Plan
+
+## Overview
+Rebuild the default Expo template into a minimalistic, black-and-white habit tracker with:
+- Local SQLite persistence
+- A weekly habit grid (heat map of consistency)
+- A mood score line chart
+- 4 bottom tabs: Today, Dashboard, Learn (placeholder), Profile (placeholder)
+
+---
+
+## 1. Dependencies to install
+- `expo-sqlite` — local SQLite database
+- `react-native-svg` — for the mood line chart (lightweight, no heavy chart lib)
+
+---
+
+## 2. app.json changes
+- Set `userInterfaceStyle: "light"` (lock to light mode)
+
+---
+
+## 3. Database layer — `db/`
+
+**`db/database.ts`**
+- Initialize SQLite with `expo-sqlite`
+- Run migrations on first launch:
+  ```sql
+  CREATE TABLE IF NOT EXISTS habits (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS habit_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    habit_id INTEGER NOT NULL,
+    date TEXT NOT NULL,         -- YYYY-MM-DD
+    status TEXT NOT NULL,       -- 'completed' | 'skipped'
+    UNIQUE(habit_id, date),
+    FOREIGN KEY (habit_id) REFERENCES habits(id)
+  );
+  CREATE TABLE IF NOT EXISTS mood_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    date TEXT NOT NULL UNIQUE,  -- YYYY-MM-DD
+    morning INTEGER,            -- 1–10
+    evening INTEGER             -- 1–10
+  );
+  ```
+
+**`db/queries.ts`**
+- `getHabits()`, `addHabit(name)`, `deleteHabit(id)`
+- `getLogsForWeek(weekStart)` — returns all logs for the 7-day window
+- `upsertLog(habitId, date, status)` — toggle completed/skipped/none
+- `getMoodLogs(weekStart)` — 7 days of mood data
+- `upsertMoodLog(date, morning, evening)`
+
+---
+
+## 4. State — `context/HabitsContext.tsx`
+React Context + useReducer holding:
+- `habits: Habit[]`
+- `logs: HabitLog[]` (current week)
+- `moodLogs: MoodLog[]` (current week)
+- `selectedWeekStart: string` (YYYY-MM-DD, defaults to current week's Sunday)
+
+Actions: `LOAD`, `TOGGLE_LOG`, `ADD_HABIT`, `DELETE_HABIT`, `SET_MOOD`, `SET_WEEK`
+
+---
+
+## 5. File / folder structure after changes
+
+```
+app/
+  _layout.tsx               — root layout: SQLite init, HabitsProvider, force light mode
+  (tabs)/
+    _layout.tsx             — bottom tabs (Today, Dashboard, Learn, Profile)
+    index.tsx               — Today: list of today's habits with toggle
+    dashboard.tsx           — Dashboard: week selector + heat map grid + mood chart
+    learn.tsx               — Learn placeholder
+    profile.tsx             — Profile placeholder
+  add-habit.tsx             — Modal: add new habit (simple text input)
+
+db/
+  database.ts
+  queries.ts
+
+context/
+  HabitsContext.tsx
+
+components/
+  WeekHeader.tsx            — Su Mo Tu We Th Fr Sa row with dates
+  HabitGridRow.tsx          — one habit row × 7 day cells
+  DayCell.tsx               — single cell (black=completed, light gray=empty, X=skipped)
+  MoodChart.tsx             — SVG polyline chart with tooltip dot
+  HabitToggle.tsx           — checkmark row for Today screen
+```
+
+---
+
+## 6. UI design tokens (black & white only)
+```
+background:      #FFFFFF
+text primary:    #000000
+text secondary:  #888888
+cell-completed:  #1A1A1A  (near black)
+cell-partial:    #555555  (medium gray — not used yet, reserved)
+cell-skipped:    #F0F0F0  (very light gray + "×" mark)
+cell-empty:      #E5E5E5  (light gray)
+border:          #E5E5E5
+tab bar bg:      #FFFFFF
+```
+No colors. No dark mode. Pure monochrome.
+
+---
+
+## 7. Screen details
+
+### Today (index.tsx)
+- Date header "Today, May 29"
+- Scrollable list of habits, each with a rounded square toggle (tap = complete, hold = skip)
+- "+" FAB → navigates to add-habit modal
+- Empty state if no habits yet
+
+### Dashboard (dashboard.tsx)
+- "Dashboard" header + "+" to add habit
+- Week selector (< prev | Su–Sa dates | next >)
+- Habit heat-map grid: rows = habits, columns = days
+  - Cell tap cycles: empty → completed → skipped → empty
+- "Mood score >" section header (tappable, navigates to mood detail — future)
+- SVG line chart: daily avg mood score for the week, with a dot tooltip on today
+
+### Add Habit modal (add-habit.tsx)
+- Single text input "Habit name"
+- "Add" button
+
+---
+
+## 8. Implementation order
+1. Install deps + update app.json
+2. `db/database.ts` + `db/queries.ts`
+3. `context/HabitsContext.tsx`
+4. Root `_layout.tsx` (init DB, wrap providers)
+5. Tab `_layout.tsx` (4 tabs, icons)
+6. `DayCell`, `WeekHeader`, `HabitGridRow` components
+7. `MoodChart` component (react-native-svg polyline)
+8. `dashboard.tsx` screen (assembles components)
+9. `HabitToggle` component
+10. `index.tsx` Today screen
+11. `add-habit.tsx` modal
+12. `learn.tsx` + `profile.tsx` placeholders
+13. Wire up add/delete habits end-to-end
+14. Polish: fonts, spacing, animations (Reanimated scale on cell tap)
