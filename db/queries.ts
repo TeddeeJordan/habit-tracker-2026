@@ -3,6 +3,8 @@ import { getDb } from './database';
 export type Habit = {
   id: number;
   name: string;
+  emoji: string;
+  times_per_week: number;
   created_at: string;
 };
 
@@ -20,18 +22,27 @@ export type MoodLog = {
   evening: number | null;
 };
 
+export type MoodEntry = {
+  id: number;
+  date: string;
+  score: number;
+  created_at: string;
+};
+
 export async function getHabits(): Promise<Habit[]> {
   return getDb().getAllAsync<Habit>('SELECT * FROM habits ORDER BY created_at ASC');
 }
 
-export async function addHabit(name: string): Promise<Habit> {
+export async function addHabit(name: string, emoji: string, timesPerWeek: number): Promise<Habit> {
   const now = new Date().toISOString();
   const result = await getDb().runAsync(
-    'INSERT INTO habits (name, created_at) VALUES (?, ?)',
+    'INSERT INTO habits (name, emoji, times_per_week, created_at) VALUES (?, ?, ?, ?)',
     name,
+    emoji,
+    timesPerWeek,
     now,
   );
-  return { id: result.lastInsertRowId, name, created_at: now };
+  return { id: result.lastInsertRowId, name, emoji, times_per_week: timesPerWeek, created_at: now };
 }
 
 export async function deleteHabit(id: number): Promise<void> {
@@ -90,4 +101,68 @@ export async function upsertMoodLog(
     morning,
     evening,
   );
+}
+
+export async function getMoodEntriesForWeek(weekStart: string): Promise<MoodEntry[]> {
+  return getDb().getAllAsync<MoodEntry>(
+    `SELECT * FROM mood_entries
+     WHERE date >= ? AND date < date(?, '+7 days')
+     ORDER BY created_at ASC`,
+    weekStart,
+    weekStart,
+  );
+}
+
+export async function addMoodEntry(date: string, score: number): Promise<MoodEntry> {
+  const now = new Date().toISOString();
+  const result = await getDb().runAsync(
+    'INSERT INTO mood_entries (date, score, created_at) VALUES (?, ?, ?)',
+    date,
+    score,
+    now,
+  );
+  return { id: result.lastInsertRowId, date, score, created_at: now };
+}
+
+export type ProfileRow = {
+  id: number;
+  name: string;
+  bio: string;
+  photo_uri: string | null;
+};
+
+export async function getProfile(): Promise<ProfileRow | null> {
+  return getDb().getFirstAsync<ProfileRow>('SELECT * FROM profile WHERE id = 1');
+}
+
+export async function upsertProfile(
+  name: string,
+  bio: string,
+  photoUri: string | null,
+): Promise<void> {
+  await getDb().runAsync(
+    `INSERT INTO profile (id, name, bio, photo_uri) VALUES (1, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET name = excluded.name, bio = excluded.bio, photo_uri = excluded.photo_uri`,
+    name,
+    bio,
+    photoUri,
+  );
+}
+
+export async function getBestStreak(): Promise<number> {
+  const rows = await getDb().getAllAsync<{ date: string }>(
+    `SELECT DISTINCT date FROM habit_logs WHERE status = 'completed' ORDER BY date ASC`,
+  );
+  if (rows.length === 0) return 0;
+  let best = 1, current = 1;
+  for (let i = 1; i < rows.length; i++) {
+    const diff =
+      (new Date(rows[i].date).getTime() - new Date(rows[i - 1].date).getTime()) / 86400000;
+    if (diff === 1) {
+      best = Math.max(best, ++current);
+    } else {
+      current = 1;
+    }
+  }
+  return best;
 }

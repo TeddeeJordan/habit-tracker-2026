@@ -15,6 +15,8 @@ export async function initDb(): Promise<void> {
     CREATE TABLE IF NOT EXISTS habits (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
+      emoji TEXT NOT NULL DEFAULT '✅',
+      times_per_week INTEGER NOT NULL DEFAULT 7,
       created_at TEXT NOT NULL
     );
 
@@ -33,5 +35,27 @@ export async function initDb(): Promise<void> {
       morning INTEGER,
       evening INTEGER
     );
+
+    CREATE TABLE IF NOT EXISTS mood_entries (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT NOT NULL,
+      score INTEGER NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS profile (
+      id INTEGER PRIMARY KEY DEFAULT 1,
+      name TEXT NOT NULL DEFAULT '',
+      bio TEXT NOT NULL DEFAULT '',
+      photo_uri TEXT
+    );
   `);
+
+  // Migrations for existing installs
+  for (const sql of [
+    `ALTER TABLE habits ADD COLUMN emoji TEXT NOT NULL DEFAULT '✅'`,
+    `ALTER TABLE habits ADD COLUMN times_per_week INTEGER NOT NULL DEFAULT 7`,
+  ]) {
+    try { await db.execAsync(sql); } catch {}
+  }
 }

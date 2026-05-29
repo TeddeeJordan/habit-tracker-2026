@@ -6,6 +6,7 @@ import { HabitLog } from '@/db/queries';
 type Props = {
   habitId: number;
   name: string;
+  emoji: string;
   weekStart: string;
   logs: HabitLog[];
   today: string;
@@ -19,7 +20,7 @@ function addDays(dateStr: string, days: number): string {
   return d.toISOString().split('T')[0];
 }
 
-export default function HabitGridRow({ habitId, name, weekStart, logs, today, onToggle, onLongPress }: Props) {
+export default function HabitGridRow({ habitId, name, emoji, weekStart, logs, today, onToggle, onLongPress }: Props) {
   return (
     <View style={styles.row}>
       {Array.from({ length: 7 }, (_, i) => {
@@ -36,7 +37,7 @@ export default function HabitGridRow({ habitId, name, weekStart, logs, today, on
         );
       })}
       <TouchableOpacity onLongPress={onLongPress} style={styles.label}>
-        <Text style={styles.name} numberOfLines={1}>{name}</Text>
+        <Text style={styles.name} numberOfLines={1}>{emoji} {name}</Text>
       </TouchableOpacity>
     </View>
   );

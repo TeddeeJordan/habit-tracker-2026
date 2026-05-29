@@ -35,14 +35,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <IconSymbol size={24} name="chart.bar" color={color} />,
         }}
       />
-      <Tabs.Screen
-        name="learn"
-        options={{
-          title: 'Learn',
-          tabBarIcon: ({ color }) => <IconSymbol size={24} name="book" color={color} />,
-        }}
-      />
-      <Tabs.Screen
+<Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',

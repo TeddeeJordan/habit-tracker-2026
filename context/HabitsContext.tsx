@@ -2,19 +2,19 @@ import React, { createContext, useCallback, useContext, useEffect, useReducer } 
 import {
   Habit,
   HabitLog,
-  MoodLog,
+  MoodEntry,
   addHabit,
+  addMoodEntry,
   deleteHabit,
   getHabits,
   getLogsForWeek,
-  getMoodLogs,
+  getMoodEntriesForWeek,
   upsertLog,
-  upsertMoodLog,
 } from '@/db/queries';
 
 function getWeekStart(date: Date): string {
   const d = new Date(date);
-  d.setDate(d.getDate() - d.getDay()); // back to Sunday
+  d.setDate(d.getDate() - d.getDay());
   return d.toISOString().split('T')[0];
 }
 
@@ -25,25 +25,25 @@ function formatDate(date: Date): string {
 type State = {
   habits: Habit[];
   logs: HabitLog[];
-  moodLogs: MoodLog[];
+  moodEntries: MoodEntry[];
   weekStart: string;
   loading: boolean;
 };
 
 type Action =
-  | { type: 'LOAD'; habits: Habit[]; logs: HabitLog[]; moodLogs: MoodLog[] }
-  | { type: 'SET_WEEK'; weekStart: string; logs: HabitLog[]; moodLogs: MoodLog[] }
+  | { type: 'LOAD'; habits: Habit[]; logs: HabitLog[]; moodEntries: MoodEntry[] }
+  | { type: 'SET_WEEK'; weekStart: string; logs: HabitLog[]; moodEntries: MoodEntry[] }
   | { type: 'ADD_HABIT'; habit: Habit }
   | { type: 'DELETE_HABIT'; id: number }
   | { type: 'UPSERT_LOG'; log: HabitLog | null; habitId: number; date: string }
-  | { type: 'UPSERT_MOOD'; moodLog: MoodLog };
+  | { type: 'ADD_MOOD_ENTRY'; entry: MoodEntry };
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
     case 'LOAD':
-      return { ...state, habits: action.habits, logs: action.logs, moodLogs: action.moodLogs, loading: false };
+      return { ...state, habits: action.habits, logs: action.logs, moodEntries: action.moodEntries, loading: false };
     case 'SET_WEEK':
-      return { ...state, weekStart: action.weekStart, logs: action.logs, moodLogs: action.moodLogs };
+      return { ...state, weekStart: action.weekStart, logs: action.logs, moodEntries: action.moodEntries };
     case 'ADD_HABIT':
       return { ...state, habits: [...state.habits, action.habit] };
     case 'DELETE_HABIT':
@@ -54,10 +54,8 @@ function reducer(state: State, action: Action): State {
       );
       return { ...state, logs: action.log ? [...filtered, action.log] : filtered };
     }
-    case 'UPSERT_MOOD': {
-      const filtered = state.moodLogs.filter((m) => m.date !== action.moodLog.date);
-      return { ...state, moodLogs: [...filtered, action.moodLog] };
-    }
+    case 'ADD_MOOD_ENTRY':
+      return { ...state, moodEntries: [...state.moodEntries, action.entry] };
     default:
       return state;
   }
@@ -65,10 +63,10 @@ function reducer(state: State, action: Action): State {
 
 type ContextValue = State & {
   today: string;
-  addHabitAction: (name: string) => Promise<void>;
+  addHabitAction: (name: string, emoji: string, timesPerWeek: number) => Promise<void>;
   deleteHabitAction: (id: number) => Promise<void>;
   toggleLog: (habitId: number, date: string) => Promise<void>;
-  setMood: (date: string, morning: number | null, evening: number | null) => Promise<void>;
+  logMood: (date: string, score: number) => Promise<void>;
   goToPrevWeek: () => Promise<void>;
   goToNextWeek: () => Promise<void>;
 };
@@ -80,33 +78,33 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, {
     habits: [],
     logs: [],
-    moodLogs: [],
+    moodEntries: [],
     weekStart: getWeekStart(new Date()),
     loading: true,
   });
 
   useEffect(() => {
     (async () => {
-      const [habits, logs, moodLogs] = await Promise.all([
+      const [habits, logs, moodEntries] = await Promise.all([
         getHabits(),
         getLogsForWeek(state.weekStart),
-        getMoodLogs(state.weekStart),
+        getMoodEntriesForWeek(state.weekStart),
       ]);
-      dispatch({ type: 'LOAD', habits, logs, moodLogs });
+      dispatch({ type: 'LOAD', habits, logs, moodEntries });
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadWeek = useCallback(async (weekStart: string) => {
-    const [logs, moodLogs] = await Promise.all([
+    const [logs, moodEntries] = await Promise.all([
       getLogsForWeek(weekStart),
-      getMoodLogs(weekStart),
+      getMoodEntriesForWeek(weekStart),
     ]);
-    dispatch({ type: 'SET_WEEK', weekStart, logs, moodLogs });
+    dispatch({ type: 'SET_WEEK', weekStart, logs, moodEntries });
   }, []);
 
-  const addHabitAction = useCallback(async (name: string) => {
-    const habit = await addHabit(name.trim());
+  const addHabitAction = useCallback(async (name: string, emoji: string, timesPerWeek: number) => {
+    const habit = await addHabit(name.trim(), emoji, timesPerWeek);
     dispatch({ type: 'ADD_HABIT', habit });
   }, []);
 
@@ -129,11 +127,10 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'UPSERT_LOG', log, habitId, date });
   }, [state.logs]);
 
-  const setMood = useCallback(async (date: string, morning: number | null, evening: number | null) => {
-    await upsertMoodLog(date, morning, evening);
-    const existing = state.moodLogs.find((m) => m.date === date);
-    dispatch({ type: 'UPSERT_MOOD', moodLog: { id: existing?.id ?? 0, date, morning, evening } });
-  }, [state.moodLogs]);
+  const logMood = useCallback(async (date: string, score: number) => {
+    const entry = await addMoodEntry(date, score);
+    dispatch({ type: 'ADD_MOOD_ENTRY', entry });
+  }, []);
 
   const goToPrevWeek = useCallback(async () => {
     const d = new Date(state.weekStart);
@@ -149,7 +146,7 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <HabitsContext.Provider
-      value={{ ...state, today, addHabitAction, deleteHabitAction, toggleLog, setMood, goToPrevWeek, goToNextWeek }}
+      value={{ ...state, today, addHabitAction, deleteHabitAction, toggleLog, logMood, goToPrevWeek, goToNextWeek }}
     >
       {children}
     </HabitsContext.Provider>
