@@ -113,7 +113,7 @@ export default function DashboardScreen() {
           <IconSymbol name="chevron.right" size={16} color="#AAAAAA" />
         </View>
         <View style={styles.chartCard}>
-          <MoodChart moodEntries={moodEntries} weekStart={weekStart} today={today} />
+          <MoodChart moodEntries={moodEntries} weekStart={weekStart} />
         </View>
       </ScrollView>
     </SafeAreaView>
