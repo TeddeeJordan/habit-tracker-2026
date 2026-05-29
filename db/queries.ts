@@ -124,6 +124,31 @@ export async function addMoodEntry(date: string, score: number): Promise<MoodEnt
   return { id: result.lastInsertRowId, date, score, created_at: now };
 }
 
+export type ProfileRow = {
+  id: number;
+  name: string;
+  bio: string;
+  photo_uri: string | null;
+};
+
+export async function getProfile(): Promise<ProfileRow | null> {
+  return getDb().getFirstAsync<ProfileRow>('SELECT * FROM profile WHERE id = 1');
+}
+
+export async function upsertProfile(
+  name: string,
+  bio: string,
+  photoUri: string | null,
+): Promise<void> {
+  await getDb().runAsync(
+    `INSERT INTO profile (id, name, bio, photo_uri) VALUES (1, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET name = excluded.name, bio = excluded.bio, photo_uri = excluded.photo_uri`,
+    name,
+    bio,
+    photoUri,
+  );
+}
+
 export async function getBestStreak(): Promise<number> {
   const rows = await getDb().getAllAsync<{ date: string }>(
     `SELECT DISTINCT date FROM habit_logs WHERE status = 'completed' ORDER BY date ASC`,

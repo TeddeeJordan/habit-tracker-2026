@@ -42,6 +42,13 @@ export async function initDb(): Promise<void> {
       score INTEGER NOT NULL,
       created_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS profile (
+      id INTEGER PRIMARY KEY DEFAULT 1,
+      name TEXT NOT NULL DEFAULT '',
+      bio TEXT NOT NULL DEFAULT '',
+      photo_uri TEXT
+    );
   `);
 
   // Migrations for existing installs
