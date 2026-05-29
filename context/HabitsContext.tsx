@@ -11,18 +11,9 @@ import {
   getMoodEntriesForWeek,
   upsertLog,
 } from '@/db/queries';
+import { formatDate, getWeekStart } from '@/utils/habitUtils';
 
-function getWeekStart(date: Date): string {
-  const d = new Date(date);
-  d.setDate(d.getDate() - d.getDay());
-  return d.toISOString().split('T')[0];
-}
-
-function formatDate(date: Date): string {
-  return date.toISOString().split('T')[0];
-}
-
-type State = {
+export type State = {
   habits: Habit[];
   logs: HabitLog[];
   moodEntries: MoodEntry[];
@@ -30,7 +21,7 @@ type State = {
   loading: boolean;
 };
 
-type Action =
+export type Action =
   | { type: 'LOAD'; habits: Habit[]; logs: HabitLog[]; moodEntries: MoodEntry[] }
   | { type: 'SET_WEEK'; weekStart: string; logs: HabitLog[]; moodEntries: MoodEntry[] }
   | { type: 'ADD_HABIT'; habit: Habit }
@@ -38,7 +29,7 @@ type Action =
   | { type: 'UPSERT_LOG'; log: HabitLog | null; habitId: number; date: string }
   | { type: 'ADD_MOOD_ENTRY'; entry: MoodEntry };
 
-function reducer(state: State, action: Action): State {
+export function reducer(state: State, action: Action): State {
   switch (action.type) {
     case 'LOAD':
       return { ...state, habits: action.habits, logs: action.logs, moodEntries: action.moodEntries, loading: false };

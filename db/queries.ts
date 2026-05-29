@@ -1,4 +1,5 @@
 import { getDb } from './database';
+import { longestConsecutiveStreak } from '@/utils/habitUtils';
 
 export type Habit = {
   id: number;
@@ -153,16 +154,5 @@ export async function getBestStreak(): Promise<number> {
   const rows = await getDb().getAllAsync<{ date: string }>(
     `SELECT DISTINCT date FROM habit_logs WHERE status = 'completed' ORDER BY date ASC`,
   );
-  if (rows.length === 0) return 0;
-  let best = 1, current = 1;
-  for (let i = 1; i < rows.length; i++) {
-    const diff =
-      (new Date(rows[i].date).getTime() - new Date(rows[i - 1].date).getTime()) / 86400000;
-    if (diff === 1) {
-      best = Math.max(best, ++current);
-    } else {
-      current = 1;
-    }
-  }
-  return best;
+  return longestConsecutiveStreak(rows.map((r) => r.date));
 }
