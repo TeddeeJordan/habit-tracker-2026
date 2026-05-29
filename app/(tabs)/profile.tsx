@@ -170,7 +170,6 @@ export default function ProfileScreen() {
 
           {/* Bio */}
           <View style={styles.field}>
-            <Text style={styles.fieldLabel}>BIO</Text>
             {editing ? (
               <View>
                 <TextInput
