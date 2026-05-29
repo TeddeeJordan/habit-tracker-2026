@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Alert,
   ScrollView,
@@ -13,7 +13,9 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import WeekHeader from '@/components/WeekHeader';
 import HabitGridRow from '@/components/HabitGridRow';
 import MoodChart from '@/components/MoodChart';
+import StatsRow from '@/components/StatsRow';
 import { useHabits } from '@/context/HabitsContext';
+import { getBestStreak } from '@/db/queries';
 
 function formatWeekRange(weekStart: string): string {
   const start = new Date(weekStart);
@@ -23,14 +25,26 @@ function formatWeekRange(weekStart: string): string {
   return `${start.toLocaleDateString('en-US', opts)} – ${end.toLocaleDateString('en-US', opts)}`;
 }
 
-export default function DashboardScreen() {
-  const { habits, logs, moodLogs, weekStart, today, toggleLog, deleteHabitAction, goToPrevWeek, goToNextWeek } = useHabits();
+function currentWeekStart(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - d.getDay());
+  return d.toISOString().split('T')[0];
+}
 
-  const isCurrentWeek = weekStart === (() => {
-    const d = new Date();
-    d.setDate(d.getDate() - d.getDay());
-    return d.toISOString().split('T')[0];
-  })();
+export default function DashboardScreen() {
+  const { habits, logs, moodEntries, weekStart, today, toggleLog, deleteHabitAction, goToPrevWeek, goToNextWeek } = useHabits();
+  const [bestStreak, setBestStreak] = useState(0);
+
+  useEffect(() => {
+    getBestStreak().then(setBestStreak);
+  }, [logs]); // recompute when logs change
+
+  const isCurrentWeek = weekStart === currentWeekStart();
+
+  // Weekly completion %: (completed logs this view-week) / (sum of times_per_week targets)
+  const weeklyTarget = habits.reduce((sum, h) => sum + h.times_per_week, 0);
+  const weeklyDone = logs.filter((l) => l.status === 'completed').length;
+  const weeklyPct = weeklyTarget === 0 ? 0 : Math.min(100, Math.round((weeklyDone / weeklyTarget) * 100));
 
   function confirmDelete(id: number, name: string) {
     Alert.alert(`Delete "${name}"?`, 'This will remove all log history for this habit.', [
@@ -49,6 +63,13 @@ export default function DashboardScreen() {
             <IconSymbol name="plus" size={22} color="#000000" />
           </TouchableOpacity>
         </View>
+
+        {/* Stats */}
+        <StatsRow
+          habitCount={habits.length}
+          weeklyCompletionPct={weeklyPct}
+          bestStreak={bestStreak}
+        />
 
         {/* Week navigator */}
         <View style={styles.weekNav}>
@@ -75,6 +96,7 @@ export default function DashboardScreen() {
                 key={h.id}
                 habitId={h.id}
                 name={h.name}
+                emoji={h.emoji}
                 weekStart={weekStart}
                 logs={logs}
                 today={today}
@@ -91,11 +113,7 @@ export default function DashboardScreen() {
           <IconSymbol name="chevron.right" size={16} color="#AAAAAA" />
         </View>
         <View style={styles.chartCard}>
-          <MoodChart moodLogs={moodLogs} weekStart={weekStart} today={today} />
-          <View style={styles.moodScaleRow}>
-            <Text style={styles.moodScaleLabel}>0</Text>
-            <Text style={styles.moodScaleLabel}>10</Text>
-          </View>
+          <MoodChart moodEntries={moodEntries} weekStart={weekStart} today={today} />
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -168,15 +186,5 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8F8F8',
     borderRadius: 16,
     padding: 16,
-  },
-  moodScaleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 4,
-    paddingHorizontal: 4,
-  },
-  moodScaleLabel: {
-    fontSize: 10,
-    color: '#CCCCCC',
   },
 });

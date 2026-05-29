@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -10,6 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import HabitToggle from '@/components/HabitToggle';
+import MoodModal from '@/components/MoodModal';
 import { useHabits } from '@/context/HabitsContext';
 
 function formatToday(dateStr: string): string {
@@ -17,10 +18,47 @@ function formatToday(dateStr: string): string {
   return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 }
 
-export default function TodayScreen() {
-  const { habits, logs, today, toggleLog } = useHabits();
+function getWeekStart(dateStr: string): string {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() - d.getDay());
+  return d.toISOString().split('T')[0];
+}
 
-  const completed = habits.filter((h) => logs.some((l) => l.habit_id === h.id && l.date === today && l.status === 'completed')).length;
+function addDays(dateStr: string, n: number): string {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + n);
+  return d.toISOString().split('T')[0];
+}
+
+export default function TodayScreen() {
+  const { habits, logs, today, toggleLog, deleteHabitAction, logMood } = useHabits();
+
+  const [moodHabit, setMoodHabit] = useState<{ id: number; name: string; emoji: string } | null>(null);
+
+  const currentWeekStart = getWeekStart(today);
+  const weekDates = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
+
+  const completed = habits.filter(
+    (h) => logs.some((l) => l.habit_id === h.id && l.date === today && l.status === 'completed'),
+  ).length;
+
+  function weeklyCount(habitId: number): number {
+    return logs.filter(
+      (l) => l.habit_id === habitId && weekDates.includes(l.date) && l.status === 'completed',
+    ).length;
+  }
+
+  async function handleToggle(habit: { id: number; name: string; emoji: string }) {
+    const existing = logs.find((l) => l.habit_id === habit.id && l.date === today);
+    const willComplete = !existing; // null → completed; completed → skipped; skipped → null
+    await toggleLog(habit.id, today);
+    if (willComplete) setMoodHabit(habit);
+  }
+
+  async function handleMoodSelect(score: number) {
+    await logMood(today, score);
+    setMoodHabit(null);
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -36,7 +74,7 @@ export default function TodayScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Progress summary */}
+        {/* Progress bar */}
         {habits.length > 0 && (
           <View style={styles.progress}>
             <View style={styles.progressBar}>
@@ -65,8 +103,12 @@ export default function TodayScreen() {
                 <React.Fragment key={h.id}>
                   <HabitToggle
                     name={h.name}
+                    emoji={h.emoji}
                     status={log?.status ?? null}
-                    onToggle={() => toggleLog(h.id, today)}
+                    timesPerWeek={h.times_per_week}
+                    weeklyCount={weeklyCount(h.id)}
+                    onToggle={() => handleToggle(h)}
+                    onDelete={() => deleteHabitAction(h.id)}
                   />
                   {i < habits.length - 1 && <View style={styles.divider} />}
                 </React.Fragment>
@@ -75,6 +117,13 @@ export default function TodayScreen() {
           </View>
         )}
       </ScrollView>
+
+      <MoodModal
+        visible={moodHabit !== null}
+        habitName={moodHabit ? `${moodHabit.emoji} ${moodHabit.name}` : ''}
+        onSelect={handleMoodSelect}
+        onSkip={() => setMoodHabit(null)}
+      />
     </SafeAreaView>
   );
 }
