@@ -1,50 +1,55 @@
-# Welcome to your Expo app 👋
+# Habit Tracker
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A minimal habit tracking app built with Expo and React Native. Track daily habits, log your mood, and review progress over time — with push notifications and an Android home screen widget.
 
-## Get started
+## Features
 
-1. Install dependencies
+- **Today view** — check off habits with a progress bar showing daily completion
+- **Dashboard** — weekly grid view, best streak, weekly completion %, and mood chart
+- **Mood logging** — rate your mood after completing each habit (1–5 scale)
+- **Push notifications** — daily reminders at 12:00 PM, automatically cancelled once a habit is completed or its weekly goal is met
+- **Android widget** — "Today's Habits" home screen widget to check off habits without opening the app
+- **Profile** — name, bio, and avatar with photo picker
 
-   ```bash
-   npm install
-   ```
+## Tech stack
 
-2. Start the app
+- [Expo](https://expo.dev) SDK 54 with the New Architecture enabled
+- [Expo Router](https://docs.expo.dev/router/introduction/) v6 for file-based navigation
+- [expo-sqlite](https://docs.expo.dev/versions/v54.0.0/sdk/sqlite/) for local persistence
+- [expo-notifications](https://docs.expo.dev/versions/v54.0.0/sdk/notifications/) for daily habit reminders
+- [react-native-android-widget](https://github.com/sAleksovski/react-native-android-widget) for the Android home screen widget
+- React 19 + TypeScript
 
-   ```bash
-   npx expo start
-   ```
+## Project structure
 
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```
+app/
+  (tabs)/
+    index.tsx       # Today screen
+    dashboard.tsx   # Weekly stats + mood chart
+    profile.tsx     # User profile
+  add-habit.tsx     # Add habit modal
+components/         # Shared UI components
+context/            # HabitsContext (global state + reducer)
+db/                 # SQLite schema, queries
+utils/              # Habit utilities, notification service
+widgets/            # Android widget components + task handler
+__tests__/          # Jest unit tests
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Getting started
 
-## Learn more
+```bash
+npm install
+npx expo start
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+Open in an [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/), [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/), or [Expo Go](https://expo.dev/go).
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+Push notifications and the Android widget require a [development build](https://docs.expo.dev/develop/development-builds/introduction/) — they are not supported in Expo Go.
 
-## Join the community
+## Running tests
 
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+```bash
+npm test
+```
