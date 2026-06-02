@@ -122,13 +122,16 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
       const granted = await requestNotificationPermissions();
       if (granted) {
         await setupNotificationCategory();
+        const todayStr = formatDate(new Date());
         const completionCountByHabitId: Record<number, number> = {};
+        const completedTodayIds = new Set<number>();
         for (const log of logs) {
           if (log.status === 'completed') {
             completionCountByHabitId[log.habit_id] = (completionCountByHabitId[log.habit_id] ?? 0) + 1;
+            if (log.date === todayStr) completedTodayIds.add(log.habit_id);
           }
         }
-        await syncHabitNotifications(habits, completionCountByHabitId);
+        await syncHabitNotifications(habits, completionCountByHabitId, completedTodayIds);
       }
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -165,12 +168,15 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
     if (existing?.status === 'completed') {
       ops.push(deleteMoodEntriesForLog(habitId, date));
     }
+    if (nextStatus === 'completed' && date === today) {
+      ops.push(cancelHabitNotification(habitId).catch(() => {}));
+    }
     await Promise.all(ops);
 
     const log: HabitLog | null =
       nextStatus ? { id: existing?.id ?? 0, habit_id: habitId, date, status: nextStatus } : null;
     dispatch({ type: 'UPSERT_LOG', log, habitId, date });
-  }, [state.logs]);
+  }, [state.logs, today]);
 
   const logMood = useCallback(async (date: string, score: number, habitId: number) => {
     const entry = await addMoodEntry(date, score, habitId);

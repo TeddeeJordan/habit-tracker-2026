@@ -2,7 +2,8 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import type { Habit } from '@/db/queries';
 
-const NOTIFICATION_HOUR = 20; // 8 PM
+const NOTIFICATION_HOUR = 12;
+const NOTIFICATION_MINUTE = 0; // 12:00 PM
 
 export async function requestNotificationPermissions(): Promise<boolean> {
   const { status: existing } = await Notifications.getPermissionsAsync();
@@ -36,7 +37,7 @@ export async function scheduleHabitNotification(habit: Habit): Promise<void> {
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.DAILY,
       hour: NOTIFICATION_HOUR,
-      minute: 0,
+      minute: NOTIFICATION_MINUTE,
     },
   });
 }
@@ -46,14 +47,15 @@ export async function cancelHabitNotification(habitId: number): Promise<void> {
 }
 
 // Schedules notifications for habits that haven't met their weekly goal,
-// cancels for those that have. Call on app load and when habits change.
+// cancels for those that have or are already completed today.
 export async function syncHabitNotifications(
   habits: Habit[],
   completionCountByHabitId: Record<number, number>,
+  completedTodayIds: Set<number> = new Set(),
 ): Promise<void> {
   for (const habit of habits) {
     const count = completionCountByHabitId[habit.id] ?? 0;
-    if (count >= habit.times_per_week) {
+    if (count >= habit.times_per_week || completedTodayIds.has(habit.id)) {
       await cancelHabitNotification(habit.id);
     } else {
       await scheduleHabitNotification(habit);
