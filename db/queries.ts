@@ -27,6 +27,7 @@ export type MoodEntry = {
   id: number;
   date: string;
   score: number;
+  habit_id: number | null;
   created_at: string;
 };
 
@@ -114,15 +115,31 @@ export async function getMoodEntriesForWeek(weekStart: string): Promise<MoodEntr
   );
 }
 
-export async function addMoodEntry(date: string, score: number): Promise<MoodEntry> {
+export async function addMoodEntry(date: string, score: number, habitId: number): Promise<MoodEntry> {
   const now = new Date().toISOString();
   const result = await getDb().runAsync(
-    'INSERT INTO mood_entries (date, score, created_at) VALUES (?, ?, ?)',
+    'INSERT INTO mood_entries (date, score, habit_id, created_at) VALUES (?, ?, ?, ?)',
     date,
     score,
+    habitId,
     now,
   );
-  return { id: result.lastInsertRowId, date, score, created_at: now };
+  return { id: result.lastInsertRowId, date, score, habit_id: habitId, created_at: now };
+}
+
+export async function deleteMoodEntriesForLog(habitId: number, date: string): Promise<void> {
+  await getDb().runAsync(
+    'DELETE FROM mood_entries WHERE habit_id = ? AND date = ?',
+    habitId,
+    date,
+  );
+}
+
+export async function deleteMoodEntriesForHabit(habitId: number): Promise<void> {
+  await getDb().runAsync(
+    'DELETE FROM mood_entries WHERE habit_id = ?',
+    habitId,
+  );
 }
 
 export type ProfileRow = {
