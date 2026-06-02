@@ -7,6 +7,10 @@ export function getDb(): SQLite.SQLiteDatabase {
   return db;
 }
 
+export async function ensureDb(): Promise<void> {
+  if (!db) await initDb();
+}
+
 export async function initDb(): Promise<void> {
   db = await SQLite.openDatabaseAsync('habits.db');
   await db.execAsync(`
