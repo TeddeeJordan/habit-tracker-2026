@@ -12,6 +12,7 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.habittracker2026",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -27,6 +28,23 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "react-native-android-widget",
+        {
+          "widgets": [
+            {
+              "name": "HabitWidget",
+              "label": "Today's Habits",
+              "description": "Check off your habits from your home screen",
+              "minWidth": "250dp",
+              "minHeight": "200dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 3,
+              "resizeMode": "vertical"
+            }
+          ]
+        }
+      ],
       [
         "expo-notifications",
         {

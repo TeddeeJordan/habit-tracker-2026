@@ -1,4 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useReducer } from 'react';
+import { Platform } from 'react-native';
+import { requestWidgetUpdate } from 'react-native-android-widget';
 import {
   Habit,
   HabitLog,
@@ -21,6 +23,18 @@ import {
   setupNotificationCategory,
   syncHabitNotifications,
 } from '@/utils/notificationService';
+import { HabitWidget } from '@/widgets/HabitWidget';
+import { getTodayHabits } from '@/widgets/widgetUtils';
+
+async function syncWidget() {
+  if (Platform.OS !== 'android') return;
+  const { habits } = await getTodayHabits();
+  await requestWidgetUpdate({
+    widgetName: 'HabitWidget',
+    renderWidget: () => <HabitWidget habits={habits} />,
+    widgetNotFound: () => {},
+  }).catch(() => {});
+}
 
 type PendingMoodHabit = { id: number; name: string; emoji: string };
 
@@ -117,6 +131,7 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
         getMoodEntriesForWeek(currentWeekStart),
       ]);
       dispatch({ type: 'LOAD', habits, logs, moodEntries });
+      syncWidget().catch(() => {});
 
       // Sync notifications: schedule for habits that haven't met their weekly goal
       const granted = await requestNotificationPermissions();
@@ -149,12 +164,14 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
     const habit = await addHabit(name.trim(), emoji, timesPerWeek);
     dispatch({ type: 'ADD_HABIT', habit });
     await scheduleHabitNotification(habit).catch(() => {});
+    syncWidget().catch(() => {});
   }, []);
 
   const deleteHabitAction = useCallback(async (id: number) => {
     await Promise.all([deleteHabit(id), deleteMoodEntriesForHabit(id)]);
     dispatch({ type: 'DELETE_HABIT', id });
     await cancelHabitNotification(id).catch(() => {});
+    syncWidget().catch(() => {});
   }, []);
 
   const toggleLog = useCallback(async (habitId: number, date: string) => {
@@ -176,6 +193,7 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
     const log: HabitLog | null =
       nextStatus ? { id: existing?.id ?? 0, habit_id: habitId, date, status: nextStatus } : null;
     dispatch({ type: 'UPSERT_LOG', log, habitId, date });
+    syncWidget().catch(() => {});
   }, [state.logs, today]);
 
   const logMood = useCallback(async (date: string, score: number, habitId: number) => {
@@ -222,6 +240,7 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
     const log: HabitLog = { id: 0, habit_id: habitId, date: todayStr, status: 'completed' };
     dispatch({ type: 'UPSERT_LOG', log, habitId, date: todayStr });
     dispatch({ type: 'SET_PENDING_MOOD_HABIT', habit: habitInfo });
+    syncWidget().catch(() => {});
 
     // Cancel notification if the weekly goal is now met
     const habit = allHabits.find(h => h.id === habitId);
