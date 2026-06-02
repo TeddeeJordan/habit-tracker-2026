@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -31,9 +31,16 @@ function addDays(dateStr: string, n: number): string {
 }
 
 export default function TodayScreen() {
-  const { habits, logs, today, toggleLog, deleteHabitAction, logMood } = useHabits();
-
-  const [moodHabit, setMoodHabit] = useState<{ id: number; name: string; emoji: string } | null>(null);
+  const {
+    habits,
+    logs,
+    today,
+    toggleLog,
+    deleteHabitAction,
+    logMood,
+    pendingMoodHabit,
+    setPendingMoodHabit,
+  } = useHabits();
 
   const currentWeekStart = getWeekStart(today);
   const weekDates = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
@@ -50,14 +57,14 @@ export default function TodayScreen() {
 
   async function handleToggle(habit: { id: number; name: string; emoji: string }) {
     const existing = logs.find((l) => l.habit_id === habit.id && l.date === today);
-    const willComplete = !existing; // null → completed; completed → skipped; skipped → null
+    const willComplete = !existing;
     await toggleLog(habit.id, today);
-    if (willComplete) setMoodHabit(habit);
+    if (willComplete) setPendingMoodHabit(habit);
   }
 
   async function handleMoodSelect(score: number) {
-    await logMood(today, score);
-    setMoodHabit(null);
+    if (pendingMoodHabit) await logMood(today, score, pendingMoodHabit.id);
+    setPendingMoodHabit(null);
   }
 
   return (
@@ -119,10 +126,10 @@ export default function TodayScreen() {
       </ScrollView>
 
       <MoodModal
-        visible={moodHabit !== null}
-        habitName={moodHabit ? `${moodHabit.emoji} ${moodHabit.name}` : ''}
+        visible={pendingMoodHabit !== null}
+        habitName={pendingMoodHabit ? `${pendingMoodHabit.emoji} ${pendingMoodHabit.name}` : ''}
         onSelect={handleMoodSelect}
-        onSkip={() => setMoodHabit(null)}
+        onSkip={() => setPendingMoodHabit(null)}
       />
     </SafeAreaView>
   );

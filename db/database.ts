@@ -55,6 +55,7 @@ export async function initDb(): Promise<void> {
   for (const sql of [
     `ALTER TABLE habits ADD COLUMN emoji TEXT NOT NULL DEFAULT '✅'`,
     `ALTER TABLE habits ADD COLUMN times_per_week INTEGER NOT NULL DEFAULT 7`,
+    `ALTER TABLE mood_entries ADD COLUMN habit_id INTEGER`,
   ]) {
     try { await db.execAsync(sql); } catch {}
   }

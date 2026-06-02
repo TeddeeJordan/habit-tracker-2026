@@ -23,10 +23,11 @@ const makeLog = (habitId: number, date: string, status: HabitLog['status'] = 'co
   status,
 });
 
-const makeMoodEntry = (id: number, date: string, score = 4): MoodEntry => ({
+const makeMoodEntry = (id: number, date: string, score = 4, habitId: number | null = null): MoodEntry => ({
   id,
   date,
   score,
+  habit_id: habitId,
   created_at: '2024-01-01T00:00:00.000Z',
 });
 
@@ -36,6 +37,7 @@ const emptyState: State = {
   moodEntries: [],
   weekStart: '2024-01-07',
   loading: true,
+  pendingMoodHabit: null,
 };
 
 // ---------------------------------------------------------------------------
@@ -107,6 +109,29 @@ describe('DELETE_HABIT', () => {
     const state = reducer(existing, { type: 'DELETE_HABIT', id: 99 });
     expect(state.habits).toHaveLength(1);
   });
+
+  it('removes mood entries linked to the deleted habit', () => {
+    const existing = {
+      ...emptyState,
+      habits: [makeHabit(1), makeHabit(2)],
+      moodEntries: [makeMoodEntry(1, '2024-01-08', 4, 1), makeMoodEntry(2, '2024-01-09', 5, 2)],
+    };
+    const state = reducer(existing, { type: 'DELETE_HABIT', id: 1 });
+
+    expect(state.moodEntries).toHaveLength(1);
+    expect(state.moodEntries[0].habit_id).toBe(2);
+  });
+
+  it('preserves legacy mood entries with no habit_id (null)', () => {
+    const existing = {
+      ...emptyState,
+      habits: [makeHabit(1)],
+      moodEntries: [makeMoodEntry(1, '2024-01-08', 4, null)],
+    };
+    const state = reducer(existing, { type: 'DELETE_HABIT', id: 1 });
+
+    expect(state.moodEntries).toHaveLength(1);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -141,6 +166,41 @@ describe('UPSERT_LOG', () => {
     const state = reducer(existing, { type: 'UPSERT_LOG', log: null, habitId: 1, date: '2024-01-08' });
     expect(state.logs).toHaveLength(1);
     expect(state.logs[0].habit_id).toBe(2);
+  });
+
+  it('removes mood entries when a completed log is un-completed (→ skipped)', () => {
+    const existing = {
+      ...emptyState,
+      logs: [makeLog(1, '2024-01-08', 'completed')],
+      moodEntries: [makeMoodEntry(1, '2024-01-08', 4, 1)],
+    };
+    const skipped = makeLog(1, '2024-01-08', 'skipped');
+    const state = reducer(existing, { type: 'UPSERT_LOG', log: skipped, habitId: 1, date: '2024-01-08' });
+
+    expect(state.moodEntries).toHaveLength(0);
+  });
+
+  it('does not remove mood entries for other habits when un-completing', () => {
+    const existing = {
+      ...emptyState,
+      logs: [makeLog(1, '2024-01-08', 'completed')],
+      moodEntries: [makeMoodEntry(1, '2024-01-08', 4, 2)],
+    };
+    const skipped = makeLog(1, '2024-01-08', 'skipped');
+    const state = reducer(existing, { type: 'UPSERT_LOG', log: skipped, habitId: 1, date: '2024-01-08' });
+
+    expect(state.moodEntries).toHaveLength(1);
+  });
+
+  it('does not remove mood entries when a skipped log is removed', () => {
+    const existing = {
+      ...emptyState,
+      logs: [makeLog(1, '2024-01-08', 'skipped')],
+      moodEntries: [makeMoodEntry(1, '2024-01-08', 4, 1)],
+    };
+    const state = reducer(existing, { type: 'UPSERT_LOG', log: null, habitId: 1, date: '2024-01-08' });
+
+    expect(state.moodEntries).toHaveLength(1);
   });
 });
 
